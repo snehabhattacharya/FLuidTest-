@@ -50,10 +50,10 @@ abstract class AbstractWidgetController extends ActionController {
 	 * Allows the widget template root path to be overriden via the framework configuration,
 	 * e.g. plugin.tx_extension.view.widget.<WidgetViewHelperClassName>.templateRootPath
 	 *
-	 * @param \TYPO3\CMS\Extbase\Mvc\View\ViewInterface $view
+	 * @param \TYPO3\Fluid\View\ViewInterface $view
 	 * @return void
 	 */
-	protected function setViewConfiguration(\TYPO3\Flow\Mvc\View\ViewInterface $view) {
+	protected function setViewConfiguration(\TYPO3\Fluid\View\ViewInterface $view) {
 		$extbaseFrameworkConfiguration = $this->configurationManager->getConfiguration(\TYPO3\Fluid\Configuration\ConfigurationManagerInterface::CONFIGURATION_TYPE_FRAMEWORK);
 		$widgetViewHelperClassName = $this->request->getWidgetContext()->getWidgetViewHelperClassName();
 	}
@@ -160,6 +160,146 @@ interface ResponseInterface {
 
 }
 
+/**
+ * An object representation of a generic message. Usually, you will use Error, Warning or Notice instead of this one.
+ *
+ * @api
+ */
+class Message {
+
+	const SEVERITY_NOTICE = 'Notice';
+	const SEVERITY_WARNING = 'Warning';
+	const SEVERITY_ERROR = 'Error';
+	const SEVERITY_OK = 'OK';
+
+	/**
+	 * The error message, could also be a key for translation.
+	 * @var string
+	 */
+	protected $message = '';
+
+	/**
+	 * An optional title for the message (used eg. in flashMessages).
+	 * @var string
+	 */
+	protected $title = '';
+
+	/**
+	 * The error code.
+	 * @var integer
+	 */
+	protected $code = NULL;
+
+	/**
+	 * The message arguments. Will be replaced in the message body.
+	 * @var array
+	 */
+	protected $arguments = array();
+
+	/**
+	 * The severity of this message ('OK'), overwrite in your own implementation.
+	 * @var string
+	 */
+	protected $severity = self::SEVERITY_OK;
+
+	/**
+	 * Constructs this error
+	 *
+	 * @param string $message An english error message which is used if no other error message can be resolved
+	 * @param integer $code A unique error code
+	 * @param array $arguments Array of arguments to be replaced in message
+	 * @param string $title optional title for the message
+	 * @api
+	 */
+	public function __construct($message, $code = NULL, array $arguments = array(), $title = '') {
+		$this->message = $message;
+		$this->code = $code;
+		$this->arguments = $arguments;
+		$this->title = $title;
+	}
+
+	/**
+	 * Returns the error message
+	 *
+	 * @return string The error message
+	 * @api
+	 */
+	public function getMessage() {
+		return $this->message;
+	}
+
+	/**
+	 * Returns the error code
+	 *
+	 * @return integer The error code
+	 * @api
+	 */
+	public function getCode() {
+		return $this->code;
+	}
+
+	/**
+	 * @return array
+	 * @api
+	 */
+	public function getArguments() {
+		return $this->arguments;
+	}
+
+	/**
+	 * @return string
+	 * @api
+	 */
+	public function getTitle() {
+		return $this->title;
+	}
+
+	/**
+	 * @return string
+	 * @api
+	 */
+	public function getSeverity() {
+		return $this->severity;
+	}
+
+	/**
+	 * @return string
+	 */
+	public function render() {
+		if ($this->arguments !== array()) {
+			return vsprintf($this->message, $this->arguments);
+		} else {
+			return $this->message;
+		}
+	}
+
+	/**
+	 * Converts this error into a string
+	 *
+	 * @return string
+	 * @api
+	 */
+	public function __toString() {
+		return $this->render();
+	}
+}
+
+/**
+ * An object representation of a generic error. Subclass this to create
+ * more specific errors if necessary.
+ *
+ * @api
+ */
+class Error extends Message {
+
+	/**
+	 * The severity of this message ('Error').
+	 * @var string
+	 */
+	protected $severity = self::SEVERITY_ERROR;
+
+}
+
 class ActionController extends AbstractController {
 
 	/**
@@ -248,10 +388,10 @@ class ActionController extends AbstractController {
 	/**
 	 * Handles a request. The result output is returned by altering the given response.
 	 *
-	 * @param \TYPO3\Flow\Mvc\RequestInterface $request The request object
-	 * @param \TYPO3\Flow\Mvc\ResponseInterface $response The response, modified by this handler
+	 * @param RequestInterface $request The request object
+	 * @param ResponseInterface $response The response, modified by this handler
 	 * @return void
-	 * @throws \TYPO3\Flow\Mvc\Exception\UnsupportedRequestTypeException
+	 * @throws \TYPO3\Fluid\Exception\UnsupportedRequestTypeException
 	 * @api
 	 */
 	public function processRequest(RequestInterface $request, ResponseInterface $response) {
@@ -288,7 +428,7 @@ class ActionController extends AbstractController {
 	protected function resolveActionMethodName() {
 		$actionMethodName = $this->request->getControllerActionName() . 'Action';
 		if (!is_callable(array($this, $actionMethodName))) {
-			throw new \TYPO3\Flow\Mvc\Exception\NoSuchActionException('An action "' . $actionMethodName . '" does not exist in controller "' . get_class($this) . '".', 1186669086);
+			throw new \TYPO3\Fluid\Exception\NoSuchActionException('An action "' . $actionMethodName . '" does not exist in controller "' . get_class($this) . '".', 1186669086);
 		}
 		return $actionMethodName;
 	}
@@ -320,7 +460,7 @@ class ActionController extends AbstractController {
 				$dataType = 'array';
 			}
 			if ($dataType === NULL) {
-				throw new \TYPO3\Flow\Mvc\Exception\InvalidArgumentTypeException('The argument type for parameter $' . $parameterName . ' of method ' . get_class($this) . '->' . $this->actionMethodName . '() could not be detected.', 1253175643);
+				throw new \TYPO3\Fluid\Exception\InvalidArgumentTypeException('The argument type for parameter $' . $parameterName . ' of method ' . get_class($this) . '->' . $this->actionMethodName . '() could not be detected.', 1253175643);
 			}
 			$defaultValue = (isset($parameterInfo['defaultValue']) ? $parameterInfo['defaultValue'] : NULL);
 			$this->arguments->addNewArgument($parameterName, $dataType, ($parameterInfo['optional'] === FALSE), $defaultValue);
@@ -549,9 +689,9 @@ class ActionController extends AbstractController {
 	 * By default, this method tries to locate a view with a name matching
 	 * the current action.
 	 *
-	 * @return \TYPO3\Flow\Mvc\View\ViewInterface the resolved view
+	 * @return \TYPO3\Fluid\View\ViewInterface the resolved view
 	 * @api
-	 * @throws \TYPO3\Flow\Mvc\Exception\ViewNotFoundException if no view can be resolved
+	 * @throws \TYPO3\Fluid\Exception\ViewNotFoundException if no view can be resolved
 	 */
 	protected function resolveView() {
 		$viewObjectName = $this->resolveViewObjectName();
@@ -564,7 +704,7 @@ class ActionController extends AbstractController {
 			throw new \TYPO3\Fluid\Exception\ViewNotFoundException(sprintf('Could not resolve view for action "%s" in controller "%s"', $this->request->getControllerActionName(), get_class($this)), 1355153185);
 		}
 		if (!$view instanceof \TYPO3\Fluid\View\ViewInterface) {
-			throw new \TYPO3\Flow\Mvc\Exception\ViewNotFoundException(sprintf('View has to be of type ViewInterface, got "%s" in action "%s" of controller "%s"', get_class($view), $this->request->getControllerActionName(), get_class($this)), 1355153188);
+			throw new \TYPO3\Fluid\Exception\ViewNotFoundException(sprintf('View has to be of type ViewInterface, got "%s" in action "%s" of controller "%s"', get_class($view), $this->request->getControllerActionName(), get_class($this)), 1355153188);
 		}
 		$view->setControllerContext($this->controllerContext);
 		return $view;
@@ -644,11 +784,11 @@ class ActionController extends AbstractController {
 	 * display no flash message at all on errors. Override this to customize
 	 * the flash message in your action controller.
 	 *
-	 * @return \TYPO3\Flow\Error\Message The flash message or FALSE if no flash message should be set
+	 * @return Message The flash message or FALSE if no flash message should be set
 	 * @api
 	 */
 	protected function getErrorFlashMessage() {
-		return new \TYPO3\Flow\Error\Error('An error occurred while trying to call %1$s->%2$s()', NULL, array(get_class($this), $this->actionMethodName));
+		return new Error('An error occurred while trying to call %1$s->%2$s()', NULL, array(get_class($this), $this->actionMethodName));
 	}
 }
 
